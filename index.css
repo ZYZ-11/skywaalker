@@ -66,6 +66,8 @@ input, select {
     box-sizing: border-box;
     font-size: 16px;
     height: 52px;
+    display: block; 
+    margin: 0 auto; 
 }
 
 button {
