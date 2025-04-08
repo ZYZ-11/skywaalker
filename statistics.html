@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计</title>
+    <link rel="stylesheet" href="statistics.css">
+
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#1a73e8">
+
+    //ios专属配置
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="/assets/icon-192.png">
+</head>
+<body>
+    <div class="statistics-container">
+        <h1>本月统计</h1>
+        <div class="total-amount">
+            本月总支出：<span id="totalAmount">0</span> 元
+        </div>
+        <ul class="expense-list" id="expenseList">
+            <!-- 记录将在这里动态添加 -->
+        </ul>
+    </div>
+
+    <nav class="navbar">
+        <ul>
+            <li><a href="index.html">记账</a></li>
+            <li><a href="statistics.html" class="active">统计</a></li>
+            <li><a href="graph.html">图表</a></li>
+            <li><a href="history.html">以往</a></li>
+        </ul>
+    </nav>
+
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('ServiceWorker注册成功: ', registration.scope);
+            })
+            .catch(err => {
+                console.error('ServiceWorker注册失败: ', err);
+            });
+            });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        function createEditForm(expense) {
+            return `
+                <div class="edit-form">
+                    <input type="number" class="edit-amount" value="${expense.amount}" placeholder="金额">
+                    <select class="edit-category">
+                        <option value="餐饮" ${expense.category === '餐饮' ? 'selected' : ''}>餐饮</option>
+                        <option value="学习" ${expense.category === '学习' ? 'selected' : ''}>学习</option>
+                        <option value="工作" ${expense.category === '工作' ? 'selected' : ''}>工作</option>
+                        <option value="娱乐" ${expense.category === '娱乐' ? 'selected' : ''}>娱乐</option>
+                        <option value="生活" ${expense.category === '生活' ? 'selected' : ''}>生活</option>
+                        <option value="其他" ${expense.category === '其他' ? 'selected' : ''}>其他</option>
+                    </select>
+                    <input type="text" class="edit-purpose" value="${expense.purpose}" placeholder="备注">
+                    <button class="save-btn">保存</button>
+                    <button class="cancel-btn">取消</button>
+                </div>
+            `;
+        }
+
+        function updateStatistics() {
+            const now = new Date();
+            const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+            const expenses = JSON.parse(localStorage.getItem(currentMonth) || '[]');
+            
+            // 计算总金额
+            const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+            document.getElementById('totalAmount').textContent = totalAmount.toFixed(2);
+            
+            // 更新列表
+            const expenseList = document.getElementById('expenseList');
+            expenseList.innerHTML = '';
+            
+            if (expenses.length === 0) {
+                expenseList.innerHTML = '<div class="no-data">暂无记录</div>';
+                return;
+            }
+            
+            // 按日期倒序排序
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            expenses.forEach((expense, index) => {
+                const li = document.createElement('li');
+                li.className = 'expense-item';
+                li.innerHTML = `
+                    <div class="expense-details">
+                        <div class="expense-amount">${expense.amount.toFixed(2)} 元</div>
+                        <div class="expense-purpose">${expense.purpose}</div>
+                        <div class="expense-date">${formatDate(expense.date)}</div>
+                    </div>
+                    <button class="delete-btn">删除</button>
+                    <button class="edit-btn">编辑</button>
+                    ${createEditForm(expense)}
+                `;
+                expenseList.appendChild(li);
+
+                // 添加编辑按钮事件
+                const editBtn = li.querySelector('.edit-btn');
+                const editForm = li.querySelector('.edit-form');
+                const saveBtn = li.querySelector('.save-btn');
+                const cancelBtn = li.querySelector('.cancel-btn');
+                const deleteBtn = li.querySelector('.delete-btn');
+
+                editBtn.addEventListener('click', () => {
+                    editForm.style.display = 'block';
+                });
+
+                saveBtn.addEventListener('click', () => {
+                    const newAmount = parseFloat(li.querySelector('.edit-amount').value);
+                    const newCategory = li.querySelector('.edit-category').value;
+                    const newPurpose = li.querySelector('.edit-purpose').value;
+
+                    if (newAmount && newCategory && newPurpose) {
+                        expenses[index].amount = newAmount;
+                        expenses[index].category = newCategory;
+                        expenses[index].purpose = newPurpose;
+
+                        // 细化小分类
+                        if (newCategory === '餐饮') {
+                            if (newPurpose.includes('早饭')) {
+                                expenses[index].subCategory = '早饭';
+                            } else if (newPurpose.includes('中饭')) {
+                                expenses[index].subCategory = '中饭';
+                            } else if (newPurpose.includes('晚饭')) {
+                                expenses[index].subCategory = '晚饭';
+                            } else if (newPurpose.includes('小食')) {
+                                expenses[index].subCategory = '小食';
+                            } else {
+                                expenses[index].subCategory = '其他';
+                            }
+                        } else {
+                            expenses[index].subCategory = '';
+                        }
+
+                        localStorage.setItem(currentMonth, JSON.stringify(expenses));
+                        updateStatistics();
+                    } else {
+                        alert('请填写完整的金额、分类和备注');
+                    }
+                });
+
+                cancelBtn.addEventListener('click', () => {
+                    editForm.style.display = 'none';
+                });
+
+                // 添加删除按钮事件
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm('确定要删除这条记录吗？')) {
+                        // 从数组中移除该记录
+                        expenses.splice(index, 1);
+                        // 更新本地存储
+                        localStorage.setItem(currentMonth, JSON.stringify(expenses));
+                        // 重新渲染列表
+                        updateStatistics();
+                        // 显示删除成功提示
+                        alert('记录已删除');
+                    }
+                });
+            });
+        }
+
+        // 页面加载时更新统计
+        updateStatistics();
+    </script>
+</body>
+</html>

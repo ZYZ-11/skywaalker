@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智账本</title>
+    <link rel="stylesheet" href="index.css">
+
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#1a73e8">
+
+    //ios专属配置
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="/assets/icon-192.png">
+</head>
+
+<body>
+    <div class="container">
+        <h1>智账本</h1>
+        <form id="expenseForm">
+            <div class="form-group">
+                <label for="amount">金额：</label>
+                <input type="number" id="amount" name="amount" placeholder="请输入金额" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+                <label for="category">分类：</label>
+                <select id="category" name="category" required>
+                    <option value="">请选择分类</option>
+                    <option value="餐饮">餐饮</option>
+                    <option value="学习">学习</option>
+                    <option value="工作">工作</option>
+                    <option value="娱乐">娱乐</option>
+                    <option value="生活">生活</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="purpose">备注：</label>
+                <input type="text" id="purpose" name="purpose" placeholder="请输入具体用途" required>
+            </div>
+            <button type="submit">记录</button>
+        </form>
+    </div>
+
+    <div class="modal-overlay" id="noticeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>开发者感言</h2>
+                <button class="close-btn" onclick="closeNotice()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    首先感谢您选择「智账本」作为您的生活小工具！<br>
+                    「智账本」的含义是「智能账本」，并没有任何贬义的意思。<br>
+                    这款工具最初源于我个人的实际需求，<br>
+                    由于是个人开发且学艺不精，<br>
+                    使用过程中可能还会遇到一些漏洞。<br>
+                    后续还会继续修改一些功能的模式，以及出现的错误。<br>
+                    如果遇到任何问题或功能建议，欢迎随时联系。<br>
+                    开发者：skywaalker.z<br>
+                    联系方式：1936744640@qq.com
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <ul>
+            <li><a href="index.html" class="active">记账</a></li>
+            <li><a href="statistics.html">统计</a></li>
+            <li><a href="graph.html">图表</a></li>
+            <li><a href="history.html">以往</a></li>
+        </ul>
+    </nav>
+
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('ServiceWorker注册成功: ', registration.scope);
+            })
+            .catch(err => {
+                console.error('ServiceWorker注册失败: ', err);
+            });
+            });
+        }
+
+
+        // 页面加载时显示提示
+        window.addEventListener('load', () => {
+            const modal = document.getElementById('noticeModal');
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+        });
+
+        // 关闭提示
+        function closeNotice() {
+            const modal = document.getElementById('noticeModal');
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        }
+
+        document.getElementById('expenseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const amount = parseFloat(document.getElementById('amount').value);
+            const category = document.getElementById('category').value;
+            const purpose = document.getElementById('purpose').value;
+            const date = new Date().toISOString();
+            
+            const expense = {
+                amount: amount,
+                category: category,
+                purpose: purpose,
+                date: date
+            };
+
+            // 设置餐饮细分类
+            if (category === '餐饮') {
+                if (purpose.includes('早饭')) {
+                    expense.subCategory = '早饭';
+                } else if (purpose.includes('中饭')) {
+                    expense.subCategory = '中饭';
+                } else if (purpose.includes('晚饭')) {
+                    expense.subCategory = '晚饭';
+                } else if (purpose.includes('小食')) {
+                    expense.subCategory = '小食';
+                } else {
+                    expense.subCategory = '其他';
+                }
+            }
+            
+            const now = new Date();
+            const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+            const expenses = JSON.parse(localStorage.getItem(currentMonth) || '[]');
+            
+            expenses.push(expense);
+            localStorage.setItem(currentMonth, JSON.stringify(expenses));
+            
+            alert('记录成功！');
+            document.getElementById('expenseForm').reset();
+        });
+
+        // 检查是否需要清理上月数据
+        function checkAndClearOldData() {
+            const now = new Date();
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            lastDay.setHours(23, 59, 59, 999);
+            
+            if (now >= lastDay) {
+                const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                const nextMonthKey = nextMonth.getFullYear() + '-' + (nextMonth.getMonth() + 1);
+                
+                // 清理上月数据
+                const lastMonthKey = now.getFullYear() + '-' + (now.getMonth() + 1);
+                localStorage.removeItem(lastMonthKey);
+            }
+        }
+
+        // 页面加载时检查
+        checkAndClearOldData();
+    </script>
+</body>
+
+</html>

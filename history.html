@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史记录</title>
+    <link rel="stylesheet" href="history.css">
+
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#1a73e8">
+
+    //ios专属配置
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="/assets/icon-192.png">
+</head>
+<body>
+    <div class="history-container">
+        <h1>历史记录</h1>
+        <div class="month-list" id="monthList">
+            <!-- 月份记录将在这里动态添加 -->
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <ul>
+            <li><a href="index.html">记账</a></li>
+            <li><a href="statistics.html">统计</a></li>
+            <li><a href="graph.html">图表</a></li>
+            <li><a href="history.html" class="active">以往</a></li>
+        </ul>
+    </nav>
+
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('ServiceWorker注册成功: ', registration.scope);
+            })
+            .catch(err => {
+                console.error('ServiceWorker注册失败: ', err);
+            });
+            });
+        }
+
+        function formatMonth(monthKey) {
+            const [year, month] = monthKey.split('-');
+            return `${year}年${month}月`;
+        }
+
+        function calculateMonthTotal(monthKey) {
+            const expenses = JSON.parse(localStorage.getItem(monthKey) || '[]');
+            return expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0);
+        }
+
+        function updateHistory() {
+            const monthList = document.getElementById('monthList');
+            monthList.innerHTML = '';
+
+            // 获取所有月份的数据
+            const months = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.match(/^\d{4}-\d{1,2}$/)) {
+                    months.push(key);
+                }
+            }
+
+            // 按月份倒序排序
+            months.sort((a, b) => b.localeCompare(a));
+
+            if (months.length === 0) {
+                monthList.innerHTML = '<div class="no-data">暂无历史记录</div>';
+                return;
+            }
+
+            months.forEach(monthKey => {
+                const total = calculateMonthTotal(monthKey);
+                const div = document.createElement('div');
+                div.className = 'month-item';
+                div.innerHTML = `
+                    <div class="month-info">
+                        <span class="month-name">${formatMonth(monthKey)}</span>
+                        <span class="month-total">¥${total.toFixed(2)}</span>
+                    </div>
+                `;
+                monthList.appendChild(div);
+            });
+        }
+
+        // 页面加载时更新历史记录
+        window.addEventListener('load', updateHistory);
+    </script>
+</body>
+</html>
