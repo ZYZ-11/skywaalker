@@ -1,6 +1,6 @@
 {
     "name": "智账本",
-    "short_name": "账本",
+    "short_name": "智账本",
     "start_url": "/index.html",
     "display": "standalone",
     "background_color": "#ffffff",
